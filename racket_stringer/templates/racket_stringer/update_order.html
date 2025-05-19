@@ -1,0 +1,19 @@
+{% extends "racket_stringer/base.html" %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+<div class="row">
+    <div class="col">
+        <div class="card">
+            <div class="card-header">Update Order</div>
+            <div class="card-body">
+                {% crispy form %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock content %}
+
+{% block extra_js %}
+{% include "racket_stringer/order_form_js.html" %}
+{% endblock extra_js %}

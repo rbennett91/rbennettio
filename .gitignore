@@ -1,0 +1,10 @@
+venv/
+.venv/
+__pycache__/
+*.env
+*.pyc
+*.sw*
+*.sqlite3
+*.sqlite3.bak
+todo.txt
+.DS_Store

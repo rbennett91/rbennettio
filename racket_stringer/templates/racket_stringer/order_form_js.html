@@ -1,0 +1,59 @@
+<script>
+$(document).ready(function() {
+    $("#id_customer").select2({
+        placeholder: '---------',
+        allowClear: true,
+    });
+    $("#id_assigned_to").select2({
+        placeholder: '---------',
+        allowClear: true,
+    });
+    $("#id_racket").select2({
+        minimumInputLength: 3,
+        placeholder: '---------',
+        allowClear: true,
+        ajax: {
+            url: '/racket_stringer/search_rackets',
+            delay: 300,
+            data: function (params) {
+                var query = {
+                    search: params.term,
+                }
+                return query;
+            }
+        }
+    });
+    $("#id_main_string").select2({
+        minimumInputLength: 3,
+        placeholder: '---------',
+        allowClear: true,
+        ajax: {
+            url: '/racket_stringer/search_strings',
+            delay: 300,
+            data: function (params) {
+                var query = {
+                    search: params.term,
+                }
+                return query;
+            }
+        }
+    });
+    $("#id_cross_string").select2({
+        minimumInputLength: 3,
+        placeholder: '---------',
+        allowClear: true,
+        ajax: {
+            url: '/racket_stringer/search_strings',
+            delay: 300,
+            data: function (params) {
+                var query = {
+                    search: params.term,
+                }
+                return query;
+            }
+        }
+    });
+
+    $("#id_due_date").flatpickr();
+});
+</script>
