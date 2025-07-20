@@ -1,0 +1,48 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>rbennett.io</title>
+    <link rel="shortcut icon" type="image/png" href="{% static 'rbennettio/img/favicon.ico' %}"/>
+    <link rel="stylesheet" href="{% static "rbennettio/css/app.css" %}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Ryan Bennett</h1>
+        </header>
+        <section id="about">
+            <h2>About</h2>
+            <div class="about-section">
+                <div class="profile-picture">
+                    <div><img src="{% static "rbennettio/img/rbennett_bw_circle.png" %}"></div>
+                </div>
+                <div class="about-content">
+                    <p>Hi, I'm Ryan!</p>
+                    <p>I'm an Indianapolis native, and I currently work as a Lead Data Engineer at a growing data consulting company.</p>
+                    <p>
+                        I've been in software development for over a decade, working on everything from full stack web development to data engineering.
+                        Nowadays I design and build solutions using Python, SQL, dbt, Snowflake, and Databricks.
+                    </p>
+                    <p>
+                        When I'm not working with data, you can find me running around Indianapolis or playing recreational soccer and tennis.
+                    </p>
+                </div>
+            </div>
+        </section>
+        <section class="projects">
+            <h2>Applications & Projects</h2>
+            <div class="project-card">
+                <h3>Racket Stringer</h3>
+                <p>A web application that manages tennis racket stringing operations.</p>
+                <a href="/racket_stringer/">Visit Racket Stringer →</a>
+            </div>
+        </section>
+        <footer>
+            <p>Contact - hello [at] rbennett [dot] io | <a href="https://www.linkedin.com/in/rbennett-io">LinkedIn</a> | <a href="https://github.com/rbennett91">GitHub</a></p>
+        </footer>
+    </div>
+</body>
+</html>
