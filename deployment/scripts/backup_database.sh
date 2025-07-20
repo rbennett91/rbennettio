@@ -9,7 +9,7 @@ set -e  # Exit on any error
 
 # This script can be scheduled via cron:
 # crontab -e
-# 0 5 * * * /path/to/backup_database.sh
+# 0 5 * * * source </path/to/app.env> && </path/to/backup_database.sh>
 
 TEMP_DIR="/tmp"
 
