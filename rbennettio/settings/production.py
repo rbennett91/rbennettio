@@ -13,7 +13,7 @@ ALLOWED_HOSTS = os.environ["ALLOWED_HOSTS"].split(", ")
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
-        "NAME": "racket_stringer.sqlite3",
+        "NAME": "rbennettio.sqlite3",
     },
 }
 
