@@ -1,0 +1,102 @@
+body {
+    font-family: "Helvetica Neue", Arial, sans-serif;
+    background-color: #0e212b;
+    color: #ccdcd0;
+    line-height: 1.6;
+    margin: 0;
+    padding: 0;
+}
+.container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+header {
+    border-bottom: 1px solid rgba(204, 220, 208, 0.2);
+}
+h1 {
+    font-size: 2.5rem;
+    font-weight: 300;
+    letter-spacing: -0.5px;
+}
+h2 {
+    font-size: 1.8rem;
+    font-weight: 300;
+    margin-top: 2rem;
+    border-bottom: 1px solid rgba(204, 220, 208, 0.2);
+    padding-bottom: 0.5rem;
+}
+p {
+    margin-bottom: 1.5rem;
+}
+a {
+    color: #9b672c;
+    text-decoration: none;
+    border-bottom: 1px solid #ccdcd0;
+    transition: opacity 0.2s ease;
+}
+a:hover {
+    opacity: 0.8;
+}
+.projects {
+    margin-top: 3rem;
+}
+.project-card {
+    background-color: rgba(204, 220, 208, 0.1);
+    /* background-color: #9b672c; */
+    border-radius: 5px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    transition: transform 0.2s ease;
+}
+.project-card h3 {
+    margin-top: 0;
+    margin-bottom: 0.5rem;
+}
+.about-section {
+    display: flex;
+    align-items: flex-start;
+    gap: 2rem;
+    flex-wrap: wrap;
+}
+.profile-picture {
+    width: 250px;
+    height: 250px;
+    border-radius: 50%;
+    overflow: hidden;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 0.9rem;
+    color: rgba(204, 220, 208, 0.7);
+    text-align: center;
+    padding: 1rem;
+    box-sizing: border-box;
+}
+.profile-picture img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.about-content {
+    background-color: rgba(204, 220, 208, 0.1);
+    border-radius: 5px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    transition: transform 0.2s ease;
+    flex: 1;
+    min-width: 300px;
+}
+.coming-soon {
+    opacity: 0.7;
+    font-style: italic;
+    font-size: 0.9rem;
+}
+footer {
+    margin-top: 3rem;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(204, 220, 208, 0.2);
+    font-size: 0.9rem;
+    text-align: center;
+    opacity: 0.7;
+}
