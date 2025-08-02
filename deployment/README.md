@@ -215,6 +215,7 @@ cd apps/rbennettio
 Pull new code to server. Run migrations and collect static files, if needed:
 
 ```bash
+source rbennettio/settings/app.env
 git pull origin main
 uv run python3 manage.py migrate
 uv run python3 manage.py collectstatic
@@ -224,7 +225,7 @@ Restart uWSGI:
 
 **Graceful Restart:**
 
-If no changes to static files are made, a soft restart can be made:
+If no changes to static files have been made, a soft restart can occur:
 
 ```bash
 touch deployment/django_rbennettio.ini
