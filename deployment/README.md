@@ -107,6 +107,8 @@ source rbennettio/settings/app.env
 ```bash
 # If restoring from backup:
 aws s3 cp s3://<s3_path_to_db_backup_file> .
+gunzip rbennettio.sqlite3.bak.gz
+mv rbennettio.sqlite3.bak rbennettio.sqlite3
 
 # Run migrations
 uv run python3 manage.py migrate
