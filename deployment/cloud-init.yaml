@@ -1,0 +1,139 @@
+#cloud-config
+
+# Cloud-init script for Amazon Linux EC2 instance
+# Sets up Django application with nginx reverse proxy
+
+package_update: true
+package_upgrade: true
+package_reboot_if_required: true
+
+packages:
+    - git
+    - sqlite
+    - gcc
+    - nginx
+    - python3
+    - python-devel
+    - augeas-devel
+
+users:
+    - default
+    - name: django
+      system: false
+      shell: /bin/bash
+      home: /home/django
+      create_home: true
+
+runcmd:
+    # Create application code directory and clone repository
+    - mkdir -p /home/django/apps/rbennettio
+    - git clone https://github.com/rbennett91/rbennettio.git /home/django/apps/rbennettio
+    - chown -R django:django /home/django/apps
+
+    # Create static files directories
+    - mkdir -p /var/www/rbennettio
+    - chown -R django:django /var/www/
+
+    # Create uwsgi log directory
+    - mkdir -p /var/log/uwsgi
+    - chown -R django:django /var/log/uwsgi
+
+    # Create uwsgi apps directory and symlink
+    - mkdir -p /etc/uwsgi/apps
+    - ln -s /home/django/apps/rbennettio/deployment/django_rbennettio.ini /etc/uwsgi/apps/
+
+    # Install UV python manager for django user
+    - sudo -u django bash -c 'curl -LsSf https://astral.sh/uv/install.sh | sh'
+    - sudo -u django bash -c 'source /home/django/.bashrc && uv python install 3.13'
+
+    # Enable and start nginx
+    - systemctl enable nginx
+    - systemctl start nginx
+
+    # Install certbot (https://certbot.eff.org/instructions?ws=nginx&os=pip)
+    - python3 -m venv /opt/certbot/
+    - /opt/certbot/bin/pip install --upgrade pip
+    - /opt/certbot/bin/pip install certbot certbot-nginx
+    - ln -s /opt/certbot/bin/certbot /usr/bin/certbot
+
+    # Setup database backup systemd timer
+    - systemctl daemon-reload
+    - systemctl enable rbennettio-backup-database.service
+    - systemctl enable rbennettio-backup-database.timer
+    - systemctl start rbennettio-backup-database.timer
+
+write_files:
+    - path: /etc/nginx/conf.d/rbennettio.conf
+      content: |
+          upstream django_rbennettio {
+              server 127.0.0.1:8001;
+          }
+
+          server {
+              listen      80;
+              server_name rbennett.io www.rbennett.io;
+              charset     utf-8;
+
+              client_max_body_size 15M;
+
+              location / {
+                  uwsgi_pass  django_rbennettio;
+                  include     uwsgi_params;
+              }
+
+              location /rbennettio/static {
+                  alias /var/www/rbennettio/static;
+              }
+          }
+      owner: root:root
+      permissions: "0644"
+
+    - path: /etc/systemd/system/rbennettio-backup-database.service
+      content: |
+          [Unit]
+          Description=Backup rbennettio database to S3
+          After=network-online.target
+          Wants=network-online.target
+
+          [Service]
+          Type=oneshot
+          User=django
+          Group=django
+          WorkingDirectory=/home/django/apps/rbennettio
+          ExecStart=/bin/sh -c 'source /home/django/apps/rbennettio/rbennettio/settings/app.env && /home/django/apps/rbennettio/deployment/scripts/backup_database_to_s3.sh'
+          StandardOutput=journal
+          StandardError=journal
+
+          # Restart policy for failed runs
+          Restart=no
+          RestartSec=5
+
+          # Security settings
+          NoNewPrivileges=true
+          PrivateTmp=true
+          ProtectSystem=strict
+          ProtectHome=read-only
+          ReadWritePaths=/tmp /var/tmp
+
+          [Install]
+          WantedBy=multi-user.target
+      owner: root:root
+      permissions: "0644"
+
+    - path: /etc/systemd/system/rbennettio-backup-database.timer
+      content: |
+          [Unit]
+          Description=Run rbennettio database backup daily
+          Requires=rbennettio-backup-database.service
+
+          [Timer]
+          # Run daily at midnight
+          OnCalendar=*-*-* 00:00:00
+
+          # Run immediately if system was down during scheduled time
+          Persistent=true
+
+          [Install]
+          WantedBy=timers.target
+      owner: root:root
+      permissions: "0644"
