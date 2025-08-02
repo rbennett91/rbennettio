@@ -1,80 +1,262 @@
-# Production Deployment
+# Production Deployment Guide
 
-## Infrastructure
-TBD - describe infrastructure, ec2 instance, other aws resources (security groups, roles, ec2 instance role),
+This document describes the production deployment of the rbennettio Django application on AWS infrastructure.
 
-this application is deployed on aws infrastructure.
+## Table of Contents
 
-compute: reserved ec2 instance, t4g.small, running Amazon Linux 2023 kernel-6.12 AMI
+- [Infrastructure Overview](#infrastructure-overview)
+- [Prerequisites](#prerequisites)
+- [Initial Deployment](#initial-deployment)
+- [Configuration](#configuration)
+- [SSL Certificate Setup](#ssl-certificate-setup)
+- [Database Management](#database-management)
+- [Application Updates](#application-updates)
+- [Monitoring and Maintenance](#monitoring-and-maintenance)
 
-s3 bucket used for sqlite3 database backups. ec2 instance role with iam created for access to s3 bucket and attached to ec2 instance. ec2 security group allows http and https access. cloud-init.yaml is supplied as user data for ec2 instance setup. route53 for dns.
+## Infrastructure Overview
 
-the django application uses:
-python3 3.13
-django 5.2.1
-sqlite3 3.40
+### AWS Resources
 
-django is served bu uwsgi which sits behind an nginx reverse proxy.
+- **Region**: us-west-2
+- **Compute**: Reserved EC2 instance (t4g.small) running Amazon Linux 2023 (kernel-6.12 AMI 64-bit Arm)
+- **Storage**: Private S3 bucket for SQLite database backups with versioning and lifecycle management
+- **DNS**: Route53 for domain management
+- **Security**:
+  - EC2 Security Group allowing HTTP (80) and HTTPS (443) inbound traffic
+  - IAM role with S3 access permissions attached to EC2 instance
+- **SSL**: Let's Encrypt certificates managed via Certbot
 
-## Configuration After ec2 launch
-<ssh to ec2 instance>
+### Application Stack
+
+- **Python**: 3.13
+- **Framework**: Django 5.2.1
+- **Database**: SQLite 3.40
+- **Python Package Manager**: UV
+- **Application Server**: uWSGI
+- **Web Server**: Nginx (reverse proxy)
+
+## Prerequisites
+
+### AWS Setup
+
+1. **Security Group**: Create an EC2 security group that allows inbound HTTP and HTTPS
+2. **S3 Bucket**: Create a private bucket for database backups with:
+   - Versioning enabled
+   - Lifecycle policy to delete old backups
+3. **IAM Role**: Create an AWS service role allowing the EC2 service to perform actions on the S3 bucket
+
+## Initial Deployment
+
+### Launch EC2 Instance
+
+In the EC2 launch wizard:
+
+- Give the server a name
+- Select the Amazon Linux 2023 kernel-6.12 64-bit Arm AMI
+- Select t4g.small instance type
+- Add a key pair
+- Add the security group from the prerequisites section
+- Add the IAM EC2 instance role from above
+- Paste the contents of `cloud-init.yaml` into the user data field
+- Launch the instance
+
+### What Does cloud-init.yaml Do?
+
+The cloud-init script automatically:
+
+- Installs required system packages (git, sqlite, nginx, etc.)
+- Creates a dedicated `django` user
+- Clones the application repository
+- Installs UV Python package manager
+- Sets up directory structure and permissions
+- Configures nginx reverse proxy
+- Installs Certbot for SSL certificates
+- Sets up systemd services for automated database backups
+
+## Configuration
+
+### 1. SSH into the server and assume the django role:
+
+```bash
+ssh -i <path_to_private_key> ec2-user@<instance_ip>
 sudo su - django
 cd apps/rbennettio
-uv sync
+```
 
+### 2. Install Python Dependencies
+
+```bash
+uv sync
+```
+
+### 3. Configure Environment Variables
+
+```bash
 cp rbennettio/settings/app.env.example rbennettio/settings/app.env
 vim rbennettio/settings/app.env
-    add secret key and allowed hostname ("rbennett.io, www.rbennett.io")
-source rbennettio/settings/app.env
+```
 
-copy racket_stringer.sqlite3 into repository:
-# aws s3 cp s3://rbennettio-private/database_backups/production/rbennettio.sqlite3 .
+### 4. Source Environment Variables
+
+```bash
+source rbennettio/settings/app.env
+```
+
+### 5. Database Setup
+
+```bash
+# If restoring from backup:
+aws s3 cp s3://<s3_path_to_db_backup_file> .
+
+# Run migrations
 uv run python3 manage.py migrate
+
+# Collect static files
 uv run python3 manage.py collectstatic
 
+# Import initial data
 uv run python3 manage.py import_rackets
 uv run python3 manage.py import_strings
+```
 
-test database backup script:
+### 6. Test Database Backup
+
+```bash
 ./deployment/scripts/backup_database_to_s3.sh
+```
 
-start uwsgi:
+### 7. Start uWSGI Application Server
+
+```bash
 uv run uwsgi --ini deployment/django_rbennettio.ini
+```
 
-if you're moving hosts, update dns, wait for dns to update. then run certbot. this will be interactive:
+### Configure DNS
+
+Configure Route 53 DNS records for the domain by adding an A record(s) pointing to the EC2 instance. Wait for DNS to propagate before continuing with SSL Certificate Setup.
+
+## SSL Certificate Setup
+
+### Initial Certificate Installation
+
+After DNS has propagated, as ec2-user:
+
+```bash
 sudo certbot --nginx
+```
 
+This will:
 
-## Backup and Restore SQLite3 Database
-TBD - describe s3 bucket, versioning, s3 lifecycle management policy, reasoning for sqlite3 over postgresql
+- Automatically detect the nginx configuration
+- Request certificates for the domains
+- Update nginx configuration with SSL settings
 
-database backups are scheduled at midnight UTC via systemd timer.
+### Certificate Renewal
 
-systemd timer management:
-# View timer status
-sudo systemctl status backup-database.timer
-# View service logs
-sudo journalctl -u rbennettio-backup-database.service -f
-# View timer logs
-sudo journalctl -u rbennettio-backup-database.timer -f
-# Test the service manually
-sudo systemctl start backup-database.service
-# Restart timer after config changes
-sudo systemctl daemon-reload
-sudo systemctl restart backup-database.timer
+Manual renewal, if needed, as ec2-user:
 
+```bash
+sudo certbot renew --dry-run
+sudo certbot renew
+```
 
-explain manual process for restoring db backup from s3. download the version of the database file from s3, copy to the code repository on the server
+## Database Management
 
+### Automated Backups
 
-## deploying new code
-cd to repo, git pull, migrate, collectstatic, restart uwsgi
+Database backups run automatically daily at midnight UTC via systemd timer.
 
-### stop and start uwsgi
-# stop existing uwsgi processes and restart (if necessary):
-# it is also possible to `kill -SIGINT <PID>` after finding the PID.
-uwsgi --stop /tmp/django_rbennettio.pid
-uwsgi --ini django_rbennettio.ini
+**Backup System Components:**
 
-# alternatiely, do a soft restart:
+- **systemd Service**: `rbennettio-backup-database.service`
+- **systemd Timer**: `rbennettio-backup-database.timer`
+- **Script**: `deployment/scripts/backup_database_to_s3.sh`
+
+### Backup Management Commands
+
+```bash
+# View service and timer status
+sudo systemctl status rbennettio-backup-database.timer
+sudo systemctl status rbennettio-backup-database.service
+
+# View service and timer logs
+sudo journalctl -u rbennettio-backup-database.service
+sudo journalctl -u rbennettio-backup-database.timer
+
+# Restart after config changes
+sudo systemctl restart rbennettio-backup-database.service
+sudo systemctl restart rbennettio-backup-database.timer
+```
+
+### Manual Database Restore
+
+You'll need to:
+
+- Find a suitable version of the database backup in S3
+- Move the backup file to the server
+- Decompress the backup file
+- Restart uWSGI
+
+## Application Updates
+
+### Deployment Process for New Code
+Once the server is configured, new code changes can be deployed as follows:
+
+SSH into the server and assume the django role:
+
+```bash
+ssh -i <path_to_private_key> ec2-user@<instance_ip>
+sudo su - django
+cd apps/rbennettio
+```
+
+Pull new code to server. Run migrations and collect static files, if needed:
+
+```bash
+git pull origin main
+uv run python3 manage.py migrate
+uv run python3 manage.py collectstatic
+```
+
+Restart uWSGI:
+
+**Graceful Restart:**
+
+If no changes to static files are made, a soft restart can be made:
+
+```bash
 touch deployment/django_rbennettio.ini
+```
+
+**Hard Restart:**
+
+Otherwise, perform a hard restart to pickup the new static files:
+
+```bash
+uv run uwsgi --stop /tmp/django_rbennettio.pid
+uv run uwsgi --ini deployment/django_rbennettio.ini
+```
+
+**Alternative Stop Method:**
+
+```bash
+# Find PID and kill process
+ps aux | grep uwsgi
+kill -SIGINT <PID>
+```
+
+## Monitoring and Maintenance
+
+### Log Locations
+
+- **uWSGI Logs**: `/var/log/uwsgi/django_rbennettio.log`
+- **Nginx Access**: `/var/log/nginx/access.log`
+- **Nginx Error**: `/var/log/nginx/error.log`
+
+### Configuration Files Reference
+
+- **Nginx Config**: `/etc/nginx/conf.d/rbennettio.conf`
+- **uWSGI Config**: `/home/django/apps/rbennettio/deployment/django_rbennettio.ini`
+- **Environment Variables**: `/home/django/apps/rbennettio/rbennettio/settings/app.env`
+- **Database Backup Service**: `/etc/systemd/system/rbennettio-backup-database.service`
+- **Database Backup Timer**: `/etc/systemd/system/rbennettio-backup-database.timer`
